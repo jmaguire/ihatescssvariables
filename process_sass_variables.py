@@ -26,17 +26,31 @@ def get_css_variables(content):
     return {match[0].strip(): match[1].strip() for match in matches}
 
 def clean_file(content):
+    def replacer(match):
+        return f"|{match.group(1).strip()}|"
     """Removes comments, SASS variables, and extra lines from the content."""
+    # Remove all comments [\s]*(\/\/)[^\n]*
     content = re.sub(r"[\s]*(\/\/)[^\n]*", '', content)
-    
-    content = re.sub(r"\$[\w-]+[^\n]+", '', content)
+    # Remove all extra lines
     content = re.sub(r'\n+', '\n', content).strip()
+    # Remove all scss variables
+    content = re.sub(r"\s*\$[\w-]+:\s*[^;]+;", '', content)
+    # Remove extra lines
+    content = re.sub(r'\n+', '\n', content).strip()
+    pattern = r'^\s*[#:](.*)\{$'
+    #replace :root or #bv with ##element##
+    content = re.sub(pattern, replacer, content, flags=re.MULTILINE)
+    #replace terminating } with ##
+    pattern = r'^\s*\}\s*$'
+    content = re.sub(pattern, '|', content, flags=re.MULTILINE)
     return content
 
 def get_css_variables_by_id(content, filename):
     """Extracts CSS variables by element ID from the content."""
     content = clean_file(content)
-    pattern = re.compile(r'([:#.]?[\w-]+)\s*\{([^}]*)\}', re.MULTILINE)
+    pattern = re.compile(r"(\|[\w-]+)\s*\|([^\|]*)\|", re.MULTILINE)
+    
+    # pattern = re.compile(r":(\w+)\s*\{([^\n\n]*)}", re.MULTILINE) need to fix to account for variables 
     matches = pattern.findall(content)
     results = []
 
@@ -44,7 +58,7 @@ def get_css_variables_by_id(content, filename):
         id = match[0].strip(':').strip("#").strip()
         properties = get_css_variables(match[1])
         results.append({"filename": f"{filename}.{id}", "data": properties})
-
+    print(results)
     return results
 
 def add_variables(variables, new_variables, filename):
@@ -104,7 +118,7 @@ def main():
         content = get_file_content(filename)
         sass_variables = add_variables(sass_variables, get_sass_variables(content), filename)
         css_variables_by_id = get_css_variables_by_id(content, filename)
-        
+        break
         for variables in css_variables_by_id:
             css_variables = add_variables(css_variables, variables["data"], variables["filename"])
 
