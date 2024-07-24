@@ -20,7 +20,7 @@ def find_scss_files(directory):
                 scss_files.append(os.path.join(root, file))
     return scss_files
 
-
+## Gets variables where there are used like var(--test-color);
 def extract_css_variables(filename):
     variable_pattern = r'var\((--[a-zA-Z0-9-]+)\)'
     variable_names = set()  # Use a set to avoid duplicate variable names
@@ -35,6 +35,16 @@ def extract_css_variables(filename):
 
     return variable_names
 
+## Gets variables where there are declared like --test-color:
+def extract_css_variable_declarations(filename):
+    variable_pattern = r'(--[\w-]+):'
+    variable_names = set()  # Use a set to avoid duplicate variable names
+
+    with open(filename, 'r') as f:
+        file_contents = f.read()
+
+    # Find all matches for the pattern
+    return set(re.findall(variable_pattern, file_contents))
 
 def get_undeclared_css_variables(file_list, declared_variables):
     undeclared_variables_combined = {}
@@ -53,25 +63,26 @@ def main():
     parser = argparse.ArgumentParser(description='Process SCSS files.')
     parser.add_argument('-d', '--directory', type=str, required=True, nargs='+',
                         help='The directory with scss files to be processed')
-    parser.add_argument('-f', '--file', type=str, required=True,
-                        help='The list of unique css variables')
+    parser.add_argument('-f', '--files', type=str, required=True, nargs='+',
+                        help='File(s) where css variables are declared')
     args = parser.parse_args()
 
-    if not args.directory or not args.file:
+    if not args.directory or not args.files:
         parser.print_usage()
         sys.exit(1)
 
     # Setup css variables
     css_variables = set()
-    with open(args.file) as f:
-        for variable in f:
-            css_variables.add(variable.strip())
-
+    for filename in args.files:
+      with open(filename) as f:
+          css_variables.update(extract_css_variable_declarations(filename))
+  
     # Get scss files
     scss_files = []
     for path in args.directory:
         scss_files.extend(find_scss_files(path))
     print(f'Found {len(scss_files)} scss files')
+
 
     data = get_undeclared_css_variables(scss_files, css_variables)
     print(f'Found {len(data)} undeclared variables')
