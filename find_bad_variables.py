@@ -4,6 +4,7 @@ import sys
 import re
 from pathlib import Path
 import json
+import time
 
 EXCLUDE = ["base", "bourbon", "custom", "neat"]
 
@@ -18,7 +19,7 @@ def find_scss_files(directory):
             if file.endswith(".scss"):
                 scss_files.append(os.path.join(root, file))
     return scss_files
-import re
+
 
 def extract_css_variables(filename):
     variable_pattern = r'var\((--[a-zA-Z0-9-]+)\)'
@@ -34,19 +35,19 @@ def extract_css_variables(filename):
 
     return variable_names
 
+
 def get_undeclared_css_variables(file_list, declared_variables):
     undeclared_variables_combined = {}
     for filename in file_list:
         filename_only = Path(filename).name
-        undeclared_variables = extract_css_variables(filename) - declared_variables
+        undeclared_variables = extract_css_variables(
+            filename) - declared_variables
         for variable in undeclared_variables:
-              if variable not in undeclared_variables_combined:
-                  undeclared_variables_combined[variable] = []
-              undeclared_variables_combined[variable].append(filename_only)
-        print(f'Processed {filename} and found {len(undeclared_variables)} undeclared variables')
+            if variable not in undeclared_variables_combined:
+                undeclared_variables_combined[variable] = []
+            undeclared_variables_combined[variable].append(filename_only)
     return undeclared_variables_combined
 
-    
 
 def main():
     parser = argparse.ArgumentParser(description='Process SCSS files.')
@@ -60,22 +61,28 @@ def main():
         parser.print_usage()
         sys.exit(1)
 
-    ## Setup css variables
+    # Setup css variables
     css_variables = set()
     with open(args.file) as f:
-      for variable in f:
-          css_variables.add(variable.strip())
-    
-    ## Get scss files
+        for variable in f:
+            css_variables.add(variable.strip())
+
+    # Get scss files
     scss_files = []
     for path in args.directory:
         scss_files.extend(find_scss_files(path))
+    print(f'Found {len(scss_files)} scss files')
 
     data = get_undeclared_css_variables(scss_files, css_variables)
-
+    print(f'Found {len(data)} undeclared variables')
+    
     with open("undeclared_variables.json", "w") as f:
         json.dump(data, f, indent=4)
 
 
 if __name__ == "__main__":
+    start_time = time.perf_counter()
     main()
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    print(f"Time taken to complete main method: {elapsed_time:.2f} seconds")
