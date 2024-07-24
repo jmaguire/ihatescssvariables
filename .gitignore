@@ -163,3 +163,4 @@ cython_debug/
 
 *.css 
 *.scss
+*.json
