@@ -3,6 +3,8 @@ import re
 import sys
 from collections import Counter
 
+# Example: python3 process_sass_variables.py -f ngx_variables.scss base_variables.scss
+
 
 def get_file_content(filename):
     """Reads the content of a file."""
@@ -110,8 +112,6 @@ def analyze_variables_by_file(variables, outfile, is_css=False):
         unique, duplicate, conflict, confused = "", "", "", ""
 
         for variable, values in variables.items():
-            if (variable == "$green"):
-                print(values)
             # There is only one defined value
             if len(values) == 1:
                 unique += get_row_to_print(variable, values[0])
@@ -159,6 +159,14 @@ def analyze_variables_by_file(variables, outfile, is_css=False):
             f.write("}\n")
 
 
+def save_unique_variables(variables, outfile):
+    list_of_variables = sorted(
+        [variable for variable in variables], key=str.lower)  # keys are variables
+    with open(outfile, 'w') as f:
+        for variable in list_of_variables:
+            f.write(f"{variable}\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description='Process SCSS files.')
     parser.add_argument('-f', '--file', type=str, required=True, nargs='+',
@@ -182,6 +190,8 @@ def main():
 
         print(f'Processed {filename}')
 
+    save_unique_variables(css_variables, "unique_css_variables.css")
+    save_unique_variables(sass_variables, "unique_sass_variables.css")
     analyze_variables_by_file(sass_variables, "processed_sass_variables.scss")
     analyze_variables_by_file(
         css_variables, "processed_css_variables.scss", is_css=True)
