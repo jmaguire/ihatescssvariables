@@ -85,7 +85,10 @@ def main():
 
 
     data = get_undeclared_css_variables(scss_files, css_variables)
+    files = {file for var, files in data.items() for file in files}
+    
     print(f'Found {len(data)} undeclared variables')
+    print(f'Found across {len(files)} files')
     
     with open("undeclared_variables.json", "w") as f:
         json.dump(data, f, indent=4)
