@@ -11,7 +11,7 @@ DEFAULT_EXCLUDE_DIRS = ["bourbon", "custom", "neat"]
 VARIABLE_USAGE_PATTERN = r'var\((--[a-zA-Z0-9-]+)\)'
 VARIABLE_DECLARATION_PATTERN = r'(--[\w-]+):'
 
-def collect_scss_files_in_directory(directory: str, exclude: List[str] = DEFAULT_EXCLUDE_DIRS) -> List[str]:
+def collect_style_files_in_directory(directory: str, exclude: List[str] = DEFAULT_EXCLUDE_DIRS) -> List[str]:
     """
     Walk through the specified directory and collect paths to all .scss files that are not in
     the excluded directories.
@@ -29,6 +29,9 @@ def collect_scss_files_in_directory(directory: str, exclude: List[str] = DEFAULT
 
     # Walk through all directories and files in the provided directory
     for path in directory_path.rglob('*.scss'):
+        if path.parent.name not in exclude:
+            scss_files.append(str(path))
+    for path in directory_path.rglob('*.css'):
         if path.parent.name not in exclude:
             scss_files.append(str(path))
     return scss_files
@@ -139,7 +142,7 @@ def main() -> None:
     # Get scss files
     scss_files = []
     for path in args.directory:
-        scss_files.extend(collect_scss_files_in_directory(path))
+        scss_files.extend(collect_style_files_in_directory(path))
     print(f'Found {len(scss_files)} scss files')
 
 
