@@ -3,12 +3,13 @@ import json
 import re
 import sys
 import time
+import sysconfig
 from pathlib import Path
-from typing import Dict, List, Set, Union
+from typing import Dict, List, Set
 
-DEFAULT_EXCLUDE_DIRS = ["base", "bourbon", "custom", "neat"]
-VARIABLE_USAGE_PATTERN = re.compile(r'var\((--[a-zA-Z0-9-]+)\)')
-VARIABLE_DECLARATION_PATTERN = re.compile(r'(--[\w-]+):')
+DEFAULT_EXCLUDE_DIRS = ["bourbon", "custom", "neat"]
+VARIABLE_USAGE_PATTERN = r'var\((--[a-zA-Z0-9-]+)\)'
+VARIABLE_DECLARATION_PATTERN = r'(--[\w-]+):'
 
 def collect_scss_files_in_directory(directory: str, exclude: List[str] = DEFAULT_EXCLUDE_DIRS) -> List[str]:
     """
@@ -30,7 +31,6 @@ def collect_scss_files_in_directory(directory: str, exclude: List[str] = DEFAULT
     for path in directory_path.rglob('*.scss'):
         if path.parent.name not in exclude:
             scss_files.append(str(path))
-
     return scss_files
 
 def extract_matches_as_set(filename: Path, pattern: re.Pattern) -> Set[str]:
@@ -47,8 +47,9 @@ def extract_matches_as_set(filename: Path, pattern: re.Pattern) -> Set[str]:
     result = set()
     try:
         with filename.open('r') as file:
-            for line in file:
-                result.update(pattern.findall(line))
+            file_contents = file.read()
+        return set(re.findall(pattern, file_contents))
+
     except IOError as e:
         print(f"Error opening or reading {filename}: {e}")
     return result
@@ -130,7 +131,11 @@ def main() -> None:
     for filename in args.files:
       file_path = Path(filename)
       declared_variables.update(extract_css_variable_declarations(file_path))
-  
+
+    with open("declared_variables.json", "w") as f:
+        declared_variables_list = sorted(list(declared_variables))
+        json.dump(declared_variables_list, f, indent=4)
+    
     # Get scss files
     scss_files = []
     for path in args.directory:
