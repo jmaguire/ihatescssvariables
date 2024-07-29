@@ -7,52 +7,85 @@ import time
 from pathlib import Path
 
 EXCLUDE = ["base", "bourbon", "custom", "neat"]
+VARIABLE_USAGE_PATTERN = re.compile(r'var\((--[a-zA-Z0-9-]+)\)')
+VARIABLE_DECLARATION_PATTERN = re.compile(r'(--[\w-]+):')
 
-
-def collect_scss_files_in_directory(directory):
+def collect_scss_files_in_directory(directory, exclude=EXCLUDE):
     """
-    Walk through all directories and files in the provided directory,
-    filtering out directories listed in EXCLUDE, and collect all .scss files.
+    Walk through the specified directory and collect paths to all .scss files that are not in
+    the excluded directories.
+
+    Parameters:
+    - directory (str or Path): The directory to search within.
+    - exclude (list): A list of directory names to exclude from the search.
+
+    Returns:
+    - list: A list of paths to .scss files as strings.
     """
     directory_path = Path(directory)
     scss_files = []
 
     # Walk through all directories and files in the provided directory
     for path in directory_path.rglob('*.scss'):
-        if path.parent.name not in EXCLUDE:
+        if path.parent.name not in exclude:
             scss_files.append(str(path))
 
     return scss_files
 
+def extract_matches_as_set(filename, pattern):
+    """
+    Read the contents of a file and find all matches based on a regex pattern.
+    
+    Parameters:
+    - filename (str): Path to the file.
+    - pattern (Pattern): Compiled regex pattern to match against.
+    
+    Returns:
+    - set: A set of unique matches found in the file.
+    """
+    result = set()
+    try:
+        with open(filename, 'r') as file:
+            for line in file:
+                result.update(pattern.findall(line))
+    except IOError as e:
+        print(f"Error opening or reading {filename}: {e}")
+    return result
+
 def extract_css_variables(filename):
     """
     Extract all CSS variable usages formatted as var(--variable-name) from a given file.
+    
+    Parameters:
+    - filename (str): Path to the file.
+    
+    Returns:
+    - set: A set of used CSS variable names.
     """
-    variable_pattern = r'var\((--[a-zA-Z0-9-]+)\)'
-    variable_names = set()  # Use a set to avoid duplicate variable names
-
-    with open(filename, 'r') as f:
-        file_contents = f.read()
-
-    return set(re.findall(variable_pattern, file_contents))
+    return extract_matches_as_set(filename, VARIABLE_USAGE_PATTERN)
 
 def extract_css_variable_declarations(filename):
     """
     Extract all CSS variable declarations formatted as --variable-name: from a given file.
+    
+    Parameters:
+    - filename (str): Path to the file.
+    
+    Returns:
+    - set: A set of declared CSS variable names.
     """
-    variable_pattern = r'(--[\w-]+):'
-    variable_names = set()  # Use a set to avoid duplicate variable names
-
-    with open(filename, 'r') as f:
-        file_contents = f.read()
-
-    # Find all matches for the pattern
-    return set(re.findall(variable_pattern, file_contents))
+    return extract_matches_as_set(filename, VARIABLE_DECLARATION_PATTERN)
 
 def get_undeclared_css_variables(file_list, declared_variables):
     """
-    Create a dictionary of undeclared variables with the value cooresponding to the files
-    where the variable is used.
+    Identify CSS variables that are used but not declared within the provided files.
+    
+    Parameters:
+    - file_list (list): A list of file paths to check.
+    - declared_variables (set): A set of globally declared CSS variables.
+    
+    Returns:
+    - dict: A dictionary with undeclared variables as keys and the list of files they appear in as values.
     """
     undeclared_variables_combined = {}
     for filename in file_list:
@@ -67,14 +100,21 @@ def get_undeclared_css_variables(file_list, declared_variables):
 
 def get_unused_css_variables(file_list, declared_variables):
     """
-    Create a list of unused variables.
+    Identify declared CSS variables that are not used in any of the provided files.
+    
+    Parameters:
+    - file_list (list): A list of file paths where to search for variable usage.
+    - declared_variables (set): A set of all declared CSS variables.
+    
+    Returns:
+    - list: A list of unused variables.
     """
     # set of variables that are never used
     used_variables_combined = set()
     for filename in file_list:
         filename_only = Path(filename).name
-        used_variables_combined = used_variables_combined.union(extract_css_variables(filename))
-    return list(declared_variables - used_variables_combined)
+        used_variables_combined.update(extract_css_variables(filename))
+    return declared_variables - used_variables_combined
 
 
 def main():
@@ -111,7 +151,7 @@ def main():
     with open("undeclared_variables.json", "w") as f:
         json.dump(undeclared, f, indent=4)
     
-    unused = get_unused_css_variables(scss_files, css_variables)
+    unused = list(get_unused_css_variables(scss_files, css_variables))
     print(f'Found {len(unused)} unused variables')
     with open("unused_variables.json", "w") as f:
         json.dump(unused, f, indent=4)
