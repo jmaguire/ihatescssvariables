@@ -1,9 +1,7 @@
 import argparse
 import json
 import re
-import sys
 import time
-import sysconfig
 from pathlib import Path
 from typing import Dict, List, Set
 
