@@ -4,6 +4,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Dict, List, Set
+import ahocorasick
 
 DEFAULT_EXCLUDE_DIRS = ["bourbon", "custom", "neat"]
 VARIABLE_USAGE_PATTERN = r'var\((--[a-zA-Z0-9-]+)\)'
@@ -57,25 +58,23 @@ def read_files_into_memory(files : List[Path]) -> Dict[str, str]:
             print(f"Error opening or reading {file_path}: {e}")
     return file_dict
 
-def get_used_images_by_files(file_dict: Dict[str, str], images : List[Path]) -> Set[str]:
-    """
-    Returns the images used in files. 
-    
-    Parameters:
-    - file_dict (Dict): dict of paths and file content loaded into memory
-    - images (List): List of images in assets
-    
-    Returns:
-    - used_images: Set of images used in file
-    """
-    
-    used_images_file = set()
-    for file in file_dict:
-        for image in images:
-            if image in file_dict[file]:
-                used_images_file.add(image)
-    return used_images_file
 
+def build_automaton(images):
+    A = ahocorasick.Automaton()
+    for idx, image in enumerate(images):
+        A.add_word(image, (idx, image))
+    A.make_automaton()
+    return A
+
+def get_used_images_by_files(file_dict, images):
+    automaton = build_automaton(images)
+    used_images = set()
+
+    for content in file_dict.values():
+        for _, (_, image) in automaton.iter(content):
+            used_images.add(image)
+
+    return used_images
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Process SCSS files.')
@@ -116,11 +115,9 @@ def main() -> None:
     print(f'Read {len(file_dict.keys())} files into memory')
 
     used_images = get_used_images_by_files(file_dict, images)
-
     unused_images = set(images) - used_images
     print(f'Found {len(used_images)} used images')
     print(f'Found {len(unused_images)} used images')
-
     with open("unused_images.json", "w") as f:
         json.dump(list(unused_images), f, indent=4)
 
